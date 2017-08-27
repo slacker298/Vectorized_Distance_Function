@@ -1,0 +1,110 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Aug 26 15:59:43 2017
+
+@author: blanier
+
+This program could be very useful for problems that require comparison between every point
+and are looking for some significant value (min, max, most) that occurs in a group of groups.
+
+NOTE: FOR SMALLER SAMPLE SIZES (<=1000 or so) NON-VECTORIZED RUNS FASTER.  Only when 
+the sample size of groups is sufficiently large does the transitioning of the data to a 
+dataframe save time.  And when it does, it save a large amount of time.
+
+What this code does:
+Vectorized a distance formula that finds the two points with the smallest distance, 
+and what that distance is.  The points use (x,y,z) coordinates.
+Used for loop to create columns for the dataframe - I think that creating the columns 
+and doing the calculations in the for loop is the same thing as creating all of the 
+columns at once and then calculating them, except the for loop saves memory by 
+overwriting the columns each iteration. 
+
+Possible improvments:
+-create a function for vectorizing the columns - is hardcoded right now but should 
+be very easy to wrap in a function.  
+-Find a way to also get the vectorized code the return the actual coordinates that 
+have the smallest distance, like the non-vectorized version 
+
+"""
+
+#Import Necessary packages 
+import pandas as pd
+import numpy as np
+from time import time
+import random
+
+#Create a list of random x,y,z coordinates
+rand_list = []
+rand_list_master = []
+for i in range(10000):
+    for j in range(3):
+        rand_list.append(random.uniform(1,100))
+    rand_list_master.append(rand_list)
+    rand_list = []
+
+time1 = time()
+
+#Create function to find the smallest distance the obvious way
+def shortest_dist_list(dist_list):
+    dist_shortest = 100
+    for i in range(len(dist_list)):
+        for j in range(len(dist_list)):
+            if i == j:
+                pass
+            else:
+                dist = (((dist_list[i][0] - dist_list[j][0])**2) + \
+                       ((dist_list[i][1] - dist_list[j][1])**2) + \
+                       ((dist_list[i][2] - dist_list[j][2])**2)) ** 0.5
+                if dist < dist_shortest:
+                    dist_shortest = dist
+                    dist_nums = [dist_list[i], dist_list[j]]
+    return dist_shortest, dist_nums
+
+#Call function, calc time
+print(shortest_dist_list(rand_list_master))
+print(time() - time1)
+
+
+
+### NOW VECTORIZE ^.^ ###
+
+#Initialize empty lists
+x_list = []
+y_list = []
+z_list = []
+
+#Use for loop to create lists of x,y,z that will be used as columns in Dataframe 
+for i in range(len(rand_list_master)):
+    x_list.append(rand_list_master[i][0])
+    y_list.append(rand_list_master[i][1])
+    z_list.append(rand_list_master[i][2])
+
+        
+#Create the dataframe 
+pd_list = pd.DataFrame({'x' : x_list, 'y' : y_list, 'z' : z_list})
+
+#Initialize placeholder value for shortest distance
+shortest_dist_old = 1000000
+
+time2 = time()
+
+#For loop that uses pandas dataframe columns to find the shortest distance
+for i in range(1, pd_list.shape[0]):
+    pd_list['x shift'] = pd_list['x'].shift(i)
+    pd_list['y shift'] = pd_list['y'].shift(i)
+    pd_list['z shift'] = pd_list['z'].shift(i)
+    
+    pd_list['dist'] = (((pd_list['x'] - pd_list['x shift']) ** 2) + \
+           ((pd_list['y'] - pd_list['y shift'])**2) + \
+           ((pd_list['z'] - pd_list['z shift'])**2))**0.5
+    
+    shortest_dist = pd_list['dist'].min(skipna=True)
+    if shortest_dist < shortest_dist_old:
+        shortest_dist_old = shortest_dist
+
+print(shortest_dist_old)
+print(time() - time2)
+    
+
+
+
